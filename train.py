@@ -16,6 +16,26 @@ from src.utils.evaluate import eval_funcs
 from src.utils.collate import collate_funcs
 
 
+# import os
+
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+
+import torch
+
+"""
+from transformers import AutoModelForCausalLM 
+
+model = AutoModelForCausalLM.from_pretrained(
+            args.llm_model_path, #"src/model/llama-7b"
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+            **kwargs
+        )
+"""
+
+
 def main(args):
     seed = args.seed
     wandb.init(project=f"{args.project}",
@@ -24,6 +44,9 @@ def main(args):
 
     seed_everything(seed=args.seed)
     print(args)
+
+    
+
 
     dataset = load_dataset[args.dataset]()
     idx_split = dataset.get_idx_split()
@@ -42,6 +65,15 @@ def main(args):
     # Step 3: Build Model
     args.llm_model_path = llama_model_path[args.llm_model_name]
     model = load_model[args.model_name](graph=dataset.graph, graph_type=dataset.graph_type, prompt=dataset.prompt, args=args)
+
+    # Set the device based on available GPUs
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # Example model usage
+    # model.to(device)
+    
+
+
 
     # Step 4 Set Optimizer
     params = [p for _, p in model.named_parameters() if p.requires_grad]
@@ -62,9 +94,19 @@ def main(args):
         model.train()
         epoch_loss, accum_loss = 0., 0.
 
+        # accum_steps = 4
         for step, batch in enumerate(train_loader):
+            # batch = {k: v.to(device) for k, v in batch.items()}  # Move batch to GPU
+            # print(f"Batch structure: {batch}")
+            # # 将每个项移动到 GPU
+            # label_mapping = dict(zip(batch['label'],list(range(len(batch['label'])))))
+            # batch['label'] = [label_mapping[l] for l in batch['label']] 
+            # batch['id'] = torch.tensor(batch['id'],dtype=torch.long)
 
+            # batch = {k: torch.tensor(v).to(device) if isinstance(v, list) else v.to(device) for k, v in batch.items()}
+            
             optimizer.zero_grad()
+            # loss = model(batch) / accum_steps  # Scale loss
             loss = model(batch)
             loss.backward()
 
